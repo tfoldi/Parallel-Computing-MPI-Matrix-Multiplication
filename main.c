@@ -24,6 +24,8 @@
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <time.h>
+
 
 /* set this parameter to reflect the cache line size of the particular
    machine you're running this program */
@@ -368,9 +370,6 @@ int main(int argc, char *argv[]) {
     /* initialize MPI */
     MPI_Init(&argc, &argv);
 
-    /* start couting time */
-    MPI_Barrier(MPI_COMM_WORLD);
-    double elapsed_time = -MPI_Wtime();
 
     /* make sure the number of arguments is correct */
     if (argc != 4) {
@@ -397,7 +396,7 @@ int main(int argc, char *argv[]) {
 
     /* read the submatrix of A managed by this process */
     read_checkerboard_matrix(argv[1], (void ***) &a, (void **) &sa, mpitype, &ma, &na, comm);
-    printf("id=%d, coord[%d,%d]: read submatrix of A of dims %dx%d\n", id, coord[0], coord[1], ma, na);
+    fprintf(stderr,"id=%d, coord[%d,%d]: read submatrix of A of dims %dx%d\n", id, coord[0], coord[1], ma, na);
     /* YOUR CODE: sanity checks as necessary */
 
     if (sqrt(ma * na) != ma || sqrt(ma * na) != na) {
@@ -406,7 +405,7 @@ int main(int argc, char *argv[]) {
 
     /* read the submatrix of B managed by this process */
     read_checkerboard_matrix(argv[2], (void ***) &b, (void **) &sb, mpitype, &mb, &nb, comm);
-    printf("id=%d, coord[%d,%d]: read submatrix of B of dims %dx%d\n", id, coord[0], coord[1], mb, nb);
+    fprintf(stderr, "id=%d, coord[%d,%d]: read submatrix of B of dims %dx%d\n", id, coord[0], coord[1], mb, nb);
 
     /* YOUR CODE: sanity checks as necessary (such as matrix compatibility) */
 
@@ -425,6 +424,10 @@ int main(int argc, char *argv[]) {
     if (na % p_sqrt != 0) {
         my_abort("id = %d, sqrt(%d) = %d cannot divide the number of columns %d", id, p, p_sqrt, na);
     }
+
+    /* start couting time */
+    MPI_Barrier(MPI_COMM_WORLD);
+    double elapsed_time = -MPI_Wtime();
 
     /* YOUR CODE: THE CANNON ALGORITHM STARTS HERE */
 
@@ -460,14 +463,14 @@ int main(int argc, char *argv[]) {
         reconstruct_matrix(n, n, b, sb);
     }
 
-    /* write the submatrix of C managed by this process */
-    write_checkerboard_matrix(argv[3], (void **) partial_c_matrix, mpitype, ma, mb, comm);
-
     /* final timing */
     elapsed_time += MPI_Wtime();
 
+    /* write the submatrix of C managed by this process */
+    write_checkerboard_matrix(argv[3], (void **) partial_c_matrix, mpitype, ma, mb, comm);
+
     if (!id) {
-        printf("elapsed time: %lf\n", elapsed_time);
+        printf("elapsed,mpi,%lf,%d,%d,%lu\n", elapsed_time,n,p,time(NULL) );
     }
 
     MPI_Finalize();
